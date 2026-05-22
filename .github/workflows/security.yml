@@ -51,9 +51,10 @@ jobs:
 
       - name: Lancer Snyk (SCA)
         run: |
+          pip install -r requirements.txt
           npm install -g snyk
           snyk auth $SNYK_TOKEN
-          snyk test --severity-threshold=high --json 2>/dev/null | tee snyk-results.json; exit ${PIPESTATUS[0]}
+          snyk test --file=requirements.txt --package-manager=pip --severity-threshold=high --json 2>/dev/null | tee snyk-results.json; exit ${PIPESTATUS[0]}
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
