@@ -1,8 +1,0 @@
-# CVE-2019-1010083 — DoS via specially crafted input
-flask==0.12.2
-
-# CVE-2022-29361 — werkzeug vulnerable version
-Werkzeug==1.0.0
-
-# CVE-2021-33503 — urllib3 vulnerable version
-urllib3==1.26.4
