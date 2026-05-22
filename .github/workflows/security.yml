@@ -52,7 +52,7 @@ jobs:
       - name: Lancer Snyk (SCA)
         run: |
           npm install -g snyk
-          snyk test --severity-threshold=high --json > snyk-results.json || true
+          snyk test --severity-threshold=high --json > snyk-results.json
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
