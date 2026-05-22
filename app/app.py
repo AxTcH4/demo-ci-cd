@@ -36,5 +36,8 @@ def hello():
     name = request.args.get("name", "World")
     safe_name = escape(name)
     return str(safe_name), 200, {"Content-Type": "text/plain"}
+@app.route("/")
+def index():
+    return "App is running", 200
 if __name__ == "__main__":
-    app.run(debug=False, host="127.0.0.1")
+    app.run(debug=False, host="0.0.0.0", port=5000)
