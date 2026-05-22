@@ -66,21 +66,40 @@ jobs:
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
-  
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-  
-      - name: Installer les dépendances
-        run: pip install -r requirements.txt
-  
+
       - name: Lancer Snyk (SCA)
         run: |
-          pip install snyk
+          npm install -g snyk
           snyk test --severity-threshold=high --json > snyk-results.json || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Afficher les CVE trouvées
+        if: always()
+        run: |
+          echo "===== RAPPORT SCA ====="
+          if [ -f snyk-results.json ]; then
+            cat snyk-results.json | python3 -c "
+            import json, sys
+            data = json.load(sys.stdin)
+            vulns = data.get('vulnerabilities', [])
+            print(f'Dépendances vulnérables : {len(vulns)}')
+            for v in vulns:
+                print(f'  [{v.get(\"severity\",\"?\").upper()}] {v.get(\"title\",\"?\")}')
+                print(f'    Package : {v.get(\"packageName\",\"?\")} {v.get(\"version\",\"?\")}')
+                print(f'    CVE : {v.get(\"identifiers\",{}).get(\"CVE\",[\"-\"])[0]}')
+                print()
+            "
+          else
+            echo "Rapport non généré"
+          fi
+
+      - name: Upload rapport SCA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sca-report
+          path: snyk-results.json
   
       - name: Afficher les CVE trouvées
         if: always()
