@@ -53,7 +53,7 @@ jobs:
         run: |
           npm install -g snyk
           snyk auth $SNYK_TOKEN
-          snyk test --severity-threshold=high --json > snyk-results.json
+          snyk test --severity-threshold=high --json 2>/dev/null | tee snyk-results.json; exit ${PIPESTATUS[0]}
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
@@ -61,12 +61,13 @@ jobs:
         if: always()
         run: |
           echo "===== RAPPORT SCA ====="
-          if [ -f snyk-results.json ]; then
+          if [ -f snyk-results.json ] && [ -s snyk-results.json ]; then
             echo "Vulnérabilités trouvées :"
             cat snyk-results.json | grep -o '"title":"[^"]*"' | sed 's/"title":"//;s/"//'
+            echo "---"
             cat snyk-results.json | grep -o '"severity":"[^"]*"' | sed 's/"severity":"//;s/"//'
           else
-            echo "Rapport non généré"
+            echo "Rapport non généré ou vide"
           fi
 
       - name: Upload rapport SCA
