@@ -67,37 +67,36 @@ jobs:
       - name: Checkout du code
         uses: actions/checkout@v4
   
-      - name: Télécharger OWASP Dependency-Check
-        run: |
-          VERSION="9.0.9"
-          wget -q https://github.com/jeremylong/DependencyCheck/releases/download/v${VERSION}/dependency-check-${VERSION}-release.zip
-          unzip -q dependency-check-${VERSION}-release.zip
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
   
-      - name: Lancer Dependency-Check (SCA)
-        run: |
-          mkdir -p reports
-          ./dependency-check/bin/dependency-check.sh \
-            --project "Demo CICD Security" \
-            --scan . \
-            --format JSON \
-            --out reports/ \
-            --noupdate \
-            --failOnCVSS 7
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+  
+      - name: Lancer Snyk (SCA)
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --json > snyk-results.json || true
   
       - name: Afficher les CVE trouvées
         if: always()
         run: |
           echo "===== RAPPORT SCA ====="
-          if [ -f reports/dependency-check-report.json ]; then
-            cat reports/dependency-check-report.json | python3 -c "
+          if [ -f snyk-results.json ]; then
+            cat snyk-results.json | python3 -c "
             import json, sys
             data = json.load(sys.stdin)
-            deps = data.get('dependencies', [])
-            vulns_found = [(d['fileName'], v) for d in deps for v in d.get('vulnerabilities', [])]
-            print(f'Dépendances vulnérables : {len(vulns_found)}')
-            for fname, v in vulns_found:
-                print(f'  [{v.get(\"cvssv3\",{}).get(\"baseSeverity\",\"?\")}] {v[\"name\"]} dans {fname}')
-                print(f'    Score CVSS : {v.get(\"cvssv3\",{}).get(\"baseScore\",\"?\")}')
+            vulns = data.get('vulnerabilities', [])
+            print(f'Dépendances vulnérables : {len(vulns)}')
+            for v in vulns:
+                print(f'  [{v.get(\"severity\",\"?\").upper()}] {v.get(\"title\",\"?\")}')
+                print(f'    Package : {v.get(\"packageName\",\"?\")} {v.get(\"version\",\"?\")}')
+                print(f'    CVE : {v.get(\"identifiers\",{}).get(\"CVE\",[\"-\"])[0]}')
+                print()
             "
           else
             echo "Rapport non généré"
@@ -108,8 +107,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sca-report
-          path: reports/
-
+          path: snyk-results.json
   # ─────────────────────────────────────────
   # ÉTAPE 3 : BUILD — seulement si SAST + SCA passent
   # ─────────────────────────────────────────
