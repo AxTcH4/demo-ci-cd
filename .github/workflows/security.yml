@@ -102,6 +102,7 @@ jobs:
             echo "Rapport non généré"
           fi
   
+          
       - name: Upload rapport SCA
         if: always()
         uses: actions/upload-artifact@v4
