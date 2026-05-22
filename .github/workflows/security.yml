@@ -62,7 +62,7 @@ jobs:
         if: always()
         run: |
           echo "===== RAPPORT SCA ====="
-          cat snyk-results.json | grep -E '"title"|"severity"|"packageName"' | head -30
+          cat snyk-results.json | grep -E '"title"|"severity"|"packageName"' | head -30 
 
       - name: Upload rapport SCA
         if: always()

@@ -1,25 +1,24 @@
-from flask import Flask, request, escape
+from flask import Flask, request
 import sqlite3
-import os
 
 app = Flask(__name__)
 
 # =====================================================
-# CORRIGÉ 1 — Secret lu depuis les variables d'env
+# FAILLE 1 — Secret hardcodé (détecté par SAST)
 # =====================================================
-DATABASE_PASSWORD = os.environ.get("DATABASE_PASSWORD")
-API_KEY = os.environ.get("API_KEY")
-SECRET_TOKEN = os.environ.get("SECRET_TOKEN")
+DATABASE_PASSWORD = "super_secret_password_123"
+API_KEY = "sk-prod-abc123secretkey9876"
+SECRET_TOKEN = "ghp_realTokenHardcoded1234567890abcdef"
 
 # =====================================================
-# CORRIGÉ 2 — Requête paramétrée (plus d'injection SQL)
+# FAILLE 2 — Injection SQL (détecté par SAST)
 # =====================================================
 def get_user(username):
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
-    # SÉCURISÉ: paramètre bindé, pas de concaténation
-    query = "SELECT * FROM users WHERE name = ?"
-    cursor.execute(query, (username,))
+    # VULNERABLE: concaténation directe sans paramètre
+    query = "SELECT * FROM users WHERE name = '" + username + "'"
+    cursor.execute(query)
     return cursor.fetchall()
 
 @app.route("/user")
@@ -29,14 +28,13 @@ def user():
     return str(results)
 
 # =====================================================
-# CORRIGÉ 3 — Échappement XSS
+# FAILLE 3 — XSS (Cross-Site Scripting)
 # =====================================================
 @app.route("/hello")
 def hello():
     name = request.args.get("name", "World")
-    # SÉCURISÉ: échappement du contenu utilisateur
-    safe_name = escape(name)
-    return f"<h1>Hello, {safe_name}!</h1>"
+    # VULNERABLE: retourne du HTML sans échappement
+    return "<h1>Hello, " + name + "!</h1>"
 
 if __name__ == "__main__":
-    app.run(debug=False, host="127.0.0.1")
+    app.run(debug=True, host="0.0.0.0")
