@@ -76,14 +76,13 @@ jobs:
 
       - name: Lancer Dependency-Check (SCA)
         run: |
+          mkdir -p reports
           ./dependency-check/bin/dependency-check.sh \
             --project "Demo CICD Security" \
             --scan . \
-            --format HTML \
             --format JSON \
             --out reports/ \
             --failOnCVSS 7
-          # --failOnCVSS 7 = fail le build si CVSS >= 7 (HIGH ou CRITICAL)
 
       - name: Afficher les CVE trouvées
         if: always()
