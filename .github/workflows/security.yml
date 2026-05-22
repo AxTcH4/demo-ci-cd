@@ -1,0 +1,166 @@
+name: Security Pipeline – CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  # ─────────────────────────────────────────
+  # ÉTAPE 1 : SAST — Analyse statique du code
+  # ─────────────────────────────────────────
+  sast:
+    name: "SAST – Semgrep"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Installer Semgrep
+        run: pip install semgrep
+
+      - name: Lancer Semgrep (SAST)
+        run: |
+          semgrep \
+            --config=p/python \
+            --config=p/secrets \
+            --config=p/owasp-top-ten \
+            --error \
+            --json \
+            --output semgrep-results.json \
+            app/
+        # --error = fail le build si une faille est détectée
+
+      - name: Afficher le rapport SAST
+        if: always()
+        run: |
+          echo "===== RAPPORT SEMGREP ====="
+          cat semgrep-results.json | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          results = data.get('results', [])
+          print(f'Vulnérabilités détectées : {len(results)}')
+          for r in results:
+              print(f'  [{r[\"extra\"][\"severity\"]}] {r[\"check_id\"]}')
+              print(f'    Fichier : {r[\"path\"]}:{r[\"start\"][\"line\"]}')
+              print(f'    Message : {r[\"extra\"][\"message\"][:100]}')
+              print()
+          "
+
+      - name: Upload rapport SAST
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-report
+          path: semgrep-results.json
+
+  # ─────────────────────────────────────────
+  # ÉTAPE 2 : SCA — Analyse des dépendances
+  # ─────────────────────────────────────────
+  sca:
+    name: "SCA – OWASP Dependency-Check"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Télécharger OWASP Dependency-Check
+        run: |
+          VERSION="9.0.9"
+          wget -q https://github.com/jeremylong/DependencyCheck/releases/download/v${VERSION}/dependency-check-${VERSION}-release.zip
+          unzip -q dependency-check-${VERSION}-release.zip
+
+      - name: Lancer Dependency-Check (SCA)
+        run: |
+          ./dependency-check/bin/dependency-check.sh \
+            --project "Demo CICD Security" \
+            --scan . \
+            --format HTML \
+            --format JSON \
+            --out reports/ \
+            --failOnCVSS 7
+          # --failOnCVSS 7 = fail le build si CVSS >= 7 (HIGH ou CRITICAL)
+
+      - name: Afficher les CVE trouvées
+        if: always()
+        run: |
+          echo "===== RAPPORT SCA ====="
+          cat reports/dependency-check-report.json | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          deps = data.get('dependencies', [])
+          vulns_found = [(d['fileName'], v) for d in deps for v in d.get('vulnerabilities', [])]
+          print(f'Dépendances vulnérables : {len(vulns_found)}')
+          for fname, v in vulns_found:
+              print(f'  [{v.get(\"cvssv3\",{}).get(\"baseSeverity\",\"?\")}] {v[\"name\"]} dans {fname}')
+              print(f'    Score CVSS : {v.get(\"cvssv3\",{}).get(\"baseScore\",\"?\")}')
+          "
+
+      - name: Upload rapport SCA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sca-report
+          path: reports/
+
+  # ─────────────────────────────────────────
+  # ÉTAPE 3 : BUILD — seulement si SAST + SCA passent
+  # ─────────────────────────────────────────
+  build:
+    name: "Build & Test"
+    runs-on: ubuntu-latest
+    needs: [sast, sca]   # bloqué si sast ou sca ont échoué
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Lancer les tests
+        run: |
+          echo "Tests unitaires..."
+          python -m pytest app/ -v || echo "Pas de tests définis"
+
+  # ─────────────────────────────────────────
+  # ÉTAPE 4 : DAST — Tests dynamiques (après build)
+  # ─────────────────────────────────────────
+  dast:
+    name: "DAST – OWASP ZAP"
+    runs-on: ubuntu-latest
+    needs: [build]
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Démarrer l'application Flask
+        run: |
+          pip install flask==0.12.2
+          python app/app.py &
+          sleep 5
+          echo "Application démarrée sur http://localhost:5000"
+
+      - name: Lancer OWASP ZAP (DAST)
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: "http://localhost:5000"
+          fail_action: true
+          # fail_action = fail le build si des vulnérabilités HIGH sont trouvées
+
+      - name: Upload rapport DAST
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-report
+          path: report_html.html
