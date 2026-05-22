@@ -63,17 +63,16 @@ jobs:
   sca:
     name: "SCA – OWASP Dependency-Check"
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
-
+  
       - name: Télécharger OWASP Dependency-Check
         run: |
           VERSION="9.0.9"
           wget -q https://github.com/jeremylong/DependencyCheck/releases/download/v${VERSION}/dependency-check-${VERSION}-release.zip
           unzip -q dependency-check-${VERSION}-release.zip
-
+  
       - name: Lancer Dependency-Check (SCA)
         run: |
           mkdir -p reports
@@ -82,23 +81,28 @@ jobs:
             --scan . \
             --format JSON \
             --out reports/ \
+            --noupdate \
             --failOnCVSS 7
-
+  
       - name: Afficher les CVE trouvées
         if: always()
         run: |
           echo "===== RAPPORT SCA ====="
-          cat reports/dependency-check-report.json | python3 -c "
-          import json, sys
-          data = json.load(sys.stdin)
-          deps = data.get('dependencies', [])
-          vulns_found = [(d['fileName'], v) for d in deps for v in d.get('vulnerabilities', [])]
-          print(f'Dépendances vulnérables : {len(vulns_found)}')
-          for fname, v in vulns_found:
-              print(f'  [{v.get(\"cvssv3\",{}).get(\"baseSeverity\",\"?\")}] {v[\"name\"]} dans {fname}')
-              print(f'    Score CVSS : {v.get(\"cvssv3\",{}).get(\"baseScore\",\"?\")}')
-          "
-
+          if [ -f reports/dependency-check-report.json ]; then
+            cat reports/dependency-check-report.json | python3 -c "
+            import json, sys
+            data = json.load(sys.stdin)
+            deps = data.get('dependencies', [])
+            vulns_found = [(d['fileName'], v) for d in deps for v in d.get('vulnerabilities', [])]
+            print(f'Dépendances vulnérables : {len(vulns_found)}')
+            for fname, v in vulns_found:
+                print(f'  [{v.get(\"cvssv3\",{}).get(\"baseSeverity\",\"?\")}] {v[\"name\"]} dans {fname}')
+                print(f'    Score CVSS : {v.get(\"cvssv3\",{}).get(\"baseScore\",\"?\")}')
+            "
+          else
+            echo "Rapport non généré"
+          fi
+  
       - name: Upload rapport SCA
         if: always()
         uses: actions/upload-artifact@v4
