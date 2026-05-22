@@ -79,22 +79,12 @@ jobs:
         run: |
           echo "===== RAPPORT SCA ====="
           if [ -f snyk-results.json ]; then
-            python3 << 'EOF'
-          import json, sys
-          with open('snyk-results.json') as f:
-              data = json.load(f)
-          vulns = data.get('vulnerabilities', [])
-          print(f'Dépendances vulnérables : {len(vulns)}')
-          for v in vulns:
-              print(f'  [{v.get("severity","?").upper()}] {v.get("title","?")}')
-              print(f'    Package : {v.get("packageName","?")} {v.get("version","?")}')
-              cvelist = v.get("identifiers",{}).get("CVE",["-"])
-              print(f'    CVE : {cvelist[0]}')
-              print()
-          EOF
-                    else
-                      echo "Rapport non généré"
-                    fi
+            echo "Vulnérabilités trouvées :"
+            cat snyk-results.json | grep -o '"title":"[^"]*"' | sed 's/"title":"//;s/"//'
+            cat snyk-results.json | grep -o '"severity":"[^"]*"' | sed 's/"severity":"//;s/"//'
+          else
+            echo "Rapport non généré"
+          fi
 
       - name: Upload rapport SCA
         if: always()
