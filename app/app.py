@@ -7,7 +7,7 @@ app = Flask(__name__)
 # =====================================================
 # CORRIGÉ 1 — Secret lu depuis les variables d'env
 # =====================================================
-DATABASE_PASSWORD = os.environ.get("DATABASE_PASSWORD")
+DATABASE_PASSWORD = os.environ.get(" DATABASE_PASSWORD")
 API_KEY = os.environ.get("API_KEY")
 SECRET_TOKEN = os.environ.get("SECRET_TOKEN")
 
@@ -34,9 +34,7 @@ def user():
 @app.route("/hello")
 def hello():
     name = request.args.get("name", "World")
-    # SÉCURISÉ: échappement du contenu utilisateur
     safe_name = escape(name)
-    return f"<h1>Hello, {safe_name}!</h1>"
-
+    return str(safe_name), 200, {"Content-Type": "text/plain"}
 if __name__ == "__main__":
     app.run(debug=False, host="127.0.0.1")
