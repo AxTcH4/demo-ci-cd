@@ -63,10 +63,14 @@ jobs:
         run: |
           echo "===== RAPPORT SCA ====="
           if [ -f snyk-results.json ] && [ -s snyk-results.json ]; then
-            echo "Vulnérabilités trouvées :"
-            cat snyk-results.json | grep -o '"title":"[^"]*"' | sed 's/"title":"//;s/"//'
-            echo "---"
-            cat snyk-results.json | grep -o '"severity":"[^"]*"' | sed 's/"severity":"//;s/"//'
+            echo "Résumé :"
+            cat snyk-results.json | grep -o '"summary":"[^"]*"' | head -1 | sed 's/"summary":"//;s/"//'
+            echo ""
+            echo "Packages vulnérables :"
+            cat snyk-results.json | grep -o '"moduleName":"[^"]*"' | sort -u | sed 's/"moduleName":"//;s/"//'
+            echo ""
+            echo "Titres des vulnérabilités :"
+            cat snyk-results.json | grep -o '"title":"[^"]*"' | sort -u | sed 's/"title":"//;s/"//'
           else
             echo "Rapport non généré ou vide"
           fi
