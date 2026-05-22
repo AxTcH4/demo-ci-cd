@@ -20,7 +20,7 @@ demo-ci-cd/
 
 ---
 
-## 🎬 Script de démonstration
+## Démonstration
 
 ### PHASE 1: Le pipeline détecte et bloque
 
