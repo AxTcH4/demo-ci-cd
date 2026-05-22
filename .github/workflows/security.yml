@@ -62,18 +62,7 @@ jobs:
         if: always()
         run: |
           echo "===== RAPPORT SCA ====="
-          if [ -f snyk-results.json ] && [ -s snyk-results.json ]; then
-            echo "Résumé :"
-            cat snyk-results.json | grep -o '"summary":"[^"]*"' | head -1 | sed 's/"summary":"//;s/"//'
-            echo ""
-            echo "Packages vulnérables :"
-            cat snyk-results.json | grep -o '"moduleName":"[^"]*"' | sort -u | sed 's/"moduleName":"//;s/"//'
-            echo ""
-            echo "Titres des vulnérabilités :"
-            cat snyk-results.json | grep -o '"title":"[^"]*"' | sort -u | sed 's/"title":"//;s/"//'
-          else
-            echo "Rapport non généré ou vide"
-          fi
+          cat snyk-results.json | grep -E '"title"|"severity"|"packageName"' | head -30
 
       - name: Upload rapport SCA
         if: always()
