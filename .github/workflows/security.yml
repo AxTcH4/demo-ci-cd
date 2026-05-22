@@ -76,11 +76,11 @@ jobs:
         run: pip install -r requirements.txt
   
       - name: Lancer Snyk (SCA)
-        uses: snyk/actions/python@master
+        run: |
+          pip install snyk
+          snyk test --severity-threshold=high --json > snyk-results.json || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high --json > snyk-results.json || true
   
       - name: Afficher les CVE trouvées
         if: always()
@@ -102,7 +102,7 @@ jobs:
             echo "Rapport non généré"
           fi
   
-          
+
       - name: Upload rapport SCA
         if: always()
         uses: actions/upload-artifact@v4
